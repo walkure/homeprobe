@@ -1,0 +1,26 @@
+# /etc/systemd/system/homeprobe.service
+[Unit]
+Description = Home Environment Sensor Exporter
+
+Requires    = dev-ttyMHZ19.device
+After       = dev-ttyMHZ19.device
+
+BindsTo     = dev-ttyMHZ19.device
+
+[Service]
+Type = simple
+StandardOutput   = journal
+StandardError    = journal
+WorkingDirectory = /home/pi/go-homeprobe
+ExecStart        = /home/pi/go-homeprobe/homeprobe --wxbeacon=ZZ:ZZ:ZZ:ZZ:ZZ:ZZ --mhz19=/dev/ttyMHZ19
+KillMode         = process
+KillSignal       = SIGINT
+Restart          = always
+RestartSec       = 10s
+User             = nobody
+Group            = nogroup
+SupplementaryGroups = i2c
+AmbientCapabilities = CAP_NET_ADMIN
+
+[Install]
+WantedBy = multi-user.target dev-ttyMHZ19.device
