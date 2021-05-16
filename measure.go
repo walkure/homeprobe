@@ -59,8 +59,8 @@ func measureBMxx80(bme *bmxx80.Dev, warmingUp bool) (inTemp, inHumid float64, er
 		homeTemp.WithLabelValues("inside").Set(inTemp)
 		homeHumid.WithLabelValues("inside").Set(round(inHumid, 2))
 
-		hPa := float64(env.Pressure) / float64(physic.Pascal*100)
-		homePressure.WithLabelValues("inside").Set(round(hPa, 2))
+		hPaMSL := calcMeanHeightAirPressure(float64(env.Pressure)/float64(physic.Pascal*100), inTemp, *aboveSeaLevel)
+		homePressure.WithLabelValues("inside").Set(round(hPaMSL, 2))
 
 		absHumid := calcAbsoluteHumidity(inTemp, inHumid)
 		homeAbsHumid.WithLabelValues("inside").Set(round(absHumid, 2))
@@ -120,4 +120,9 @@ func calcDisconfortIndex(temp, relativeHumid float64) float64 {
 func round(value float64, places int) float64 {
 	shift := math.Pow10(places)
 	return math.Round(value*shift) / shift
+}
+
+func calcMeanHeightAirPressure(pressure, temp, height float64) float64 {
+	kelvin := temp + 273.15
+	return pressure * math.Pow(kelvin/(kelvin+0.0065*height), -5.257)
 }

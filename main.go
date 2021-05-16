@@ -30,6 +30,7 @@ var promAddr = flag.String("listen", ":9821", "OpenMetrics Exporter Listeing Add
 var co2Addr = flag.String("mhz19", "/dev/ttyUSB0", "MH-Z19 UART Port")
 var wxBeacon2ID = flag.String("wxbeacon", "", "WxBeacon2 Device ID")
 var tempOffset = flag.Float64("temp_offset", 0, "BME280 Temperature offset")
+var aboveSeaLevel = flag.Float64("above_sea_level", 0, "Height above sea level")
 
 const (
 	ccs811_bus      = 0x5b
@@ -163,6 +164,7 @@ func main() {
 	defer dev.Halt()
 
 	log.Printf("Temperature offset:%g\n", *tempOffset)
+	log.Printf("Height above sea level:%gm\n", *aboveSeaLevel)
 
 	// Open CCS811
 	ccs, err := ccs811.New(bus, &ccs811.Opts{
@@ -235,7 +237,7 @@ func receiveWxBeacon(data interface{}) {
 
 		homeTemp.WithLabelValues("outside").Set(v.Temp)
 		homeHumid.WithLabelValues("outside").Set(v.Humid)
-		homePressure.WithLabelValues("outside").Set(v.Pressure)
+		homePressure.WithLabelValues("outside").Set(round(calcMeanHeightAirPressure(v.Pressure, v.Temp, *aboveSeaLevel), 2))
 
 		homeDisconfortIndex.WithLabelValues("outside").Set(v.DisconfortIndex)
 		homeSoundNoise.WithLabelValues("outside").Set(v.SoundNoise)
