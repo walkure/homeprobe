@@ -35,6 +35,7 @@ var aboveSeaLevel = flag.Float64("above_sea_level", 0, "Height above sea level")
 const (
 	ccs811_bus      = 0x5b
 	bme280_bus      = 0x76
+	sht3x_bus       = 0x45
 	warming_seconds = 30
 )
 
@@ -139,13 +140,12 @@ func main() {
 	}
 
 	if *wxBeacon2ID == "" {
-		log.Fatal("WxBeacon2 ID not set")
+		log.Printf("WxBeacon2 ID not set")
 	} else {
 		log.Printf("WxBeacon2 ID:[%s]\n", *wxBeacon2ID)
-	}
-
-	if err := wxbeacon2.WaitForReceiveData(*wxBeacon2ID, receiveWxBeacon); err != nil {
-		log.Fatal("WxBeacon2 error: ", err)
+		if err := wxbeacon2.WaitForReceiveData(*wxBeacon2ID, receiveWxBeacon); err != nil {
+			log.Printf("WxBeacon2 error: ", err)
+		}
 	}
 
 	// Open a handle to the first available I²C bus:
@@ -157,43 +157,56 @@ func main() {
 
 	// Open a handle to a bme280/bmp280 connected on the I²C bus using default
 	// settings:
-	dev, err := bmxx80.NewI2C(bus, bme280_bus, &bmxx80.DefaultOpts)
+	var bmx *bmxx80.Dev
+	bmx, err = bmxx80.NewI2C(bus, bme280_bus, &bmxx80.DefaultOpts)
 	if err != nil {
-		log.Fatal("BMxx80 error: ", err)
+		log.Printf("BMxx80 error: ", err)
+		bmx = nil
+	} else {
+		defer bmx.Halt()
 	}
-	defer dev.Halt()
 
 	log.Printf("Temperature offset:%g\n", *tempOffset)
 	log.Printf("Height above sea level:%gm\n", *aboveSeaLevel)
 
 	// Open CCS811
-	ccs, err := ccs811.New(bus, &ccs811.Opts{
+	var ccs *ccs811.Dev
+	ccs, err = ccs811.New(bus, &ccs811.Opts{
 		Addr:               ccs811_bus,
 		MeasurementMode:    ccs811.MeasurementModeConstant250,
 		InterruptWhenReady: false, UseThreshold: false})
 	if err != nil {
-		log.Fatal("CCS811 open error: ", err)
-	}
-
-	// Start CCS811
-	if err = ccs.StartSensorApp(); err != nil {
-		log.Fatal("CCS811 start error: ", err)
+		log.Printf("CCS811 open error: ", err)
+		ccs = nil
+	} else {
+		// Start CCS811
+		if err = ccs.StartSensorApp(); err != nil {
+			log.Printf("CCS811 start error: ", err)
+			ccs = nil
+		}
 	}
 
 	// Open MH-Z19
-	log.Printf("MH-Z19 Device:[%s]\n", *co2Addr)
+	log.Printf("MH-Z19 bmxice:[%s]\n", *co2Addr)
 	connConfig := z19.CreateSerialConfig()
 	connConfig.Name = *co2Addr
-	port, err := serial.OpenPort(connConfig)
+	var mhz *serial.Port
+	mhz, err = serial.OpenPort(connConfig)
 	if err != nil {
-		log.Fatal("MH-Z19 open error: ", err)
+		log.Printf("MH-Z19 open error: ", err)
+		mhz = nil
+	} else {
+		defer mhz.Close()
 	}
-	defer port.Close()
+
+	if bmx == nil && ccs == nil && mhz == nil {
+		log.Fatal("no sensor detected.")
+	}
 
 	go func() {
 		start := time.Now().Add(warming_seconds * time.Second)
 		for {
-			if err := measureMetrics(dev, ccs, port, start); err != nil {
+			if err := measureMetrics(bmx, ccs, mhz, start); err != nil {
 				log.Printf("Error:%+v", err)
 			}
 			time.Sleep(time.Second * 15)

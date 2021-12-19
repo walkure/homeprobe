@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"github.com/tarm/serial"
 	"math"
 	"time"
 
@@ -16,7 +16,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, z19dev io.ReadWriter, start time.Time) error {
+func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, z19dev *serial.Port, start time.Time) error {
 
 	warmingUp := time.Now().Before(start)
 
@@ -26,13 +26,19 @@ func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, z19dev io.ReadWriter, star
 
 	var errors error
 
-	multierr.AppendInto(&errors, measureMHZ19(z19dev, warmingUp))
+	if z19dev != nil {
+		multierr.AppendInto(&errors, measureMHZ19(z19dev, warmingUp))
+	}
+
+	if bme == nil {
+		return errors
+	}
 
 	inTemp, inHumid, err := measureBMxx80(bme, warmingUp)
 
 	if err != nil {
 		multierr.Append(errors, err)
-	} else {
+	} else if ccs != nil {
 		multierr.AppendInto(&errors, measureCCS811(ccs, inTemp, inHumid, warmingUp))
 	}
 
@@ -93,7 +99,7 @@ func measureCCS811(ccs *ccs811.Dev, inTemp float64, inHumid float64, warmingUp b
 	return nil
 }
 
-func measureMHZ19(z19dev io.ReadWriter, warmingUp bool) error {
+func measureMHZ19(z19dev *serial.Port, warmingUp bool) error {
 	concentration, err := z19.TakeReading(z19dev)
 	if err != nil {
 		return fmt.Errorf("Z19: %w", err)
