@@ -186,6 +186,21 @@ func main() {
 		}
 	}
 
+	// Open SHT3x
+	var sht *SHT3x
+	sht, err = NewSHT3x(sht3x_bus)
+	if err != nil {
+		log.Printf("SHT3x open error: ", err)
+		sht = nil
+	} else {
+		defer sht.Close()
+		// Reset SHT3x
+		if err = sht.Reset(); err != nil {
+			log.Printf("SHT3x start error: ", err)
+			sht = nil
+		}
+	}
+
 	// Open MH-Z19
 	log.Printf("MH-Z19 bmxice:[%s]\n", *co2Addr)
 	connConfig := z19.CreateSerialConfig()
@@ -199,14 +214,14 @@ func main() {
 		defer mhz.Close()
 	}
 
-	if bmx == nil && ccs == nil && mhz == nil {
+	if bmx == nil && ccs == nil && mhz == nil && sht == nil {
 		log.Fatal("no sensor detected.")
 	}
 
 	go func() {
 		start := time.Now().Add(warming_seconds * time.Second)
 		for {
-			if err := measureMetrics(bmx, ccs, mhz, start); err != nil {
+			if err := measureMetrics(bmx, ccs, sht, mhz, start); err != nil {
 				log.Printf("Error:%+v", err)
 			}
 			time.Sleep(time.Second * 15)

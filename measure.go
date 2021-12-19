@@ -11,12 +11,13 @@ import (
 	"periph.io/x/devices/v3/bmxx80"
 	"periph.io/x/devices/v3/ccs811"
 
+	sht3x "github.com/d2r2/go-sht3x"
 	z19 "github.com/eternal-flame-AD/mh-z19"
 
 	"go.uber.org/multierr"
 )
 
-func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, z19dev *serial.Port, start time.Time) error {
+func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, z19dev *serial.Port, start time.Time) error {
 
 	warmingUp := time.Now().Before(start)
 
@@ -30,15 +31,24 @@ func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, z19dev *serial.Port, start
 		multierr.AppendInto(&errors, measureMHZ19(z19dev, warmingUp))
 	}
 
-	if bme == nil {
-		return errors
+	var inTemp, inHumid float64
+	var err error
+
+	if bme != nil {
+		inTemp, inHumid, err = measureBMxx80(bme, warmingUp)
+		if err != nil {
+			multierr.Append(errors, err)
+		}
 	}
 
-	inTemp, inHumid, err := measureBMxx80(bme, warmingUp)
+	if sht != nil {
+		inTemp, inHumid, err = measureSHT3x(sht, warmingUp)
+		if err != nil {
+			multierr.Append(errors, err)
+		}
+	}
 
-	if err != nil {
-		multierr.Append(errors, err)
-	} else if ccs != nil {
+	if ccs != nil && (sht != nil || bme != nil) {
 		multierr.AppendInto(&errors, measureCCS811(ccs, inTemp, inHumid, warmingUp))
 	}
 
@@ -53,7 +63,7 @@ func measureBMxx80(bme *bmxx80.Dev, warmingUp bool) (inTemp, inHumid float64, er
 		return
 	}
 	temp := env.Temperature + physic.Temperature(*tempOffset)*physic.Celsius
-	logPrintf("%8s(%8s) %10s %9s ", temp, env.Temperature, env.Pressure, env.Humidity)
+	logPrintf("BME2xx %8s(%8s) %10s %9s ", temp, env.Temperature, env.Pressure, env.Humidity)
 
 	inTemp = float64(temp.Celsius())
 	inHumid = float64(env.Humidity) / float64(physic.PercentRH)
@@ -67,6 +77,31 @@ func measureBMxx80(bme *bmxx80.Dev, warmingUp bool) (inTemp, inHumid float64, er
 
 		hPaMSL := calcMeanHeightAirPressure(float64(env.Pressure)/float64(physic.Pascal*100), inTemp, *aboveSeaLevel)
 		homePressure.WithLabelValues("inside").Set(round(hPaMSL, 2))
+
+		absHumid := calcAbsoluteHumidity(inTemp, inHumid)
+		homeAbsHumid.WithLabelValues("inside").Set(round(absHumid, 2))
+
+		disconfortIndex := calcDisconfortIndex(inTemp, inHumid)
+		homeDisconfortIndex.WithLabelValues("inside").Set(round(disconfortIndex, 2))
+	}
+
+	return
+}
+
+func measureSHT3x(sht *SHT3x, warmingUp bool) (inTemp, inHumid float64, err error) {
+	inTemp, inHumid, err = sht.ReadTemperatureAndRelativeHumidity(sht3x.RepeatabilityMedium)
+	if err != nil {
+		err = fmt.Errorf("SHT3x: %w", err)
+		return
+	}
+	logPrintf("SHT3x %v*C, %v%%\n", inTemp, inHumid)
+
+	fmt.Printf("Disconfort Index:%g\n", round(calcDisconfortIndex(inTemp, inHumid), 2))
+
+	if !warmingUp {
+
+		homeTemp.WithLabelValues("inside").Set(inTemp)
+		homeHumid.WithLabelValues("inside").Set(round(inHumid, 2))
 
 		absHumid := calcAbsoluteHumidity(inTemp, inHumid)
 		homeAbsHumid.WithLabelValues("inside").Set(round(absHumid, 2))
