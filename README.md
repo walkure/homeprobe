@@ -10,6 +10,7 @@ Goで書いています。(go version go1.15.3 linux/arm)
 - I2C接続
   - BME280 [ＢＭＥ２８０使用　温湿度・気圧センサモジュールキット](https://akizukidenshi.com/catalog/g/gK-09421/)
   - CCS811 [CCS811搭載 空気品質センサモジュール](https://www.switch-science.com/catalog/3298/)
+  - SHT35 [GROVE - I2C 高精度温湿度センサ（SHT35）](https://www.switch-science.com/catalog/5337/)
 - シリアル接続
   - MH-Z19B/C [ＣＯ２センサーモジュール　ＭＨ－Ｚ１９Ｃ](https://akizukidenshi.com/catalog/g/gM-16142/)
 - Bluetooth Low Energy(BLE)
