@@ -24,32 +24,41 @@ func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, z19dev *serial
 	if warmingUp {
 		logPrintf("Warming Up until:%v\n", start)
 	}
+	fmt.Printf("BME %p,CCS %p,SHT %p,Z19 %p\n",bme,ccs,sht,z19dev)
 
 	var errors error
 
 	if z19dev != nil {
+		logPrintf("Begin MHZ19\n")
 		multierr.AppendInto(&errors, measureMHZ19(z19dev, warmingUp))
+		logPrintf("End MHZ19\n")
 	}
 
 	var inTemp, inHumid float64
 	var err error
 
 	if bme != nil {
+		logPrintf("Begin BMxx80\n")
 		inTemp, inHumid, err = measureBMxx80(bme, warmingUp)
+		fmt.Printf("BME2xx Temp:%v Humid:%v\n",inTemp,inHumid)
 		if err != nil {
 			multierr.Append(errors, err)
 		}
 	}
 
 	if sht != nil {
+		logPrintf("Begin SHT3x\n")
 		inTemp, inHumid, err = measureSHT3x(sht, warmingUp)
+		fmt.Printf("SHT3x Temp:%v Humid:%v\n",inTemp,inHumid)
 		if err != nil {
 			multierr.Append(errors, err)
 		}
 	}
 
 	if ccs != nil && (sht != nil || bme != nil) {
+		logPrintf("BeginCS811\n")
 		multierr.AppendInto(&errors, measureCCS811(ccs, inTemp, inHumid, warmingUp))
+		logPrintf("END CCS811\n")
 	}
 
 	return errors
@@ -135,8 +144,11 @@ func measureCCS811(ccs *ccs811.Dev, inTemp float64, inHumid float64, warmingUp b
 }
 
 func measureMHZ19(z19dev *serial.Port, warmingUp bool) error {
+	logPrintf("BeginMHZ19Read\n")
 	concentration, err := z19.TakeReading(z19dev)
+	logPrintf("EndMHZ19Read\n")
 	if err != nil {
+		fmt.Print("Z19Err:",err)
 		return fmt.Errorf("Z19: %w", err)
 	}
 	logPrintf("co2=%dppm\n", concentration)

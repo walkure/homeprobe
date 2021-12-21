@@ -164,6 +164,7 @@ func main() {
 		bmx = nil
 	} else {
 		defer bmx.Halt()
+		logPrintf("BMxx80 activated\n")
 	}
 
 	log.Printf("Temperature offset:%g\n", *tempOffset)
@@ -184,6 +185,7 @@ func main() {
 			log.Printf("CCS811 start error: ", err)
 			ccs = nil
 		}
+		logPrintf("CCS811 activated\n")
 	}
 
 	// Open SHT3x
@@ -199,6 +201,7 @@ func main() {
 			log.Printf("SHT3x start error: ", err)
 			sht = nil
 		}
+		logPrintf("SHT3x activated\n")
 	}
 
 	// Open MH-Z19
@@ -212,6 +215,7 @@ func main() {
 		mhz = nil
 	} else {
 		defer mhz.Close()
+		logPrintf("MH-Z19 activated\n")
 	}
 
 	if bmx == nil && ccs == nil && mhz == nil && sht == nil {
@@ -220,10 +224,13 @@ func main() {
 
 	go func() {
 		start := time.Now().Add(warming_seconds * time.Second)
+		logPrintf("start measuring\n")
 		for {
+			logPrintf("begin measuring\n")
 			if err := measureMetrics(bmx, ccs, sht, mhz, start); err != nil {
 				log.Printf("Error:%+v", err)
 			}
+			logPrintf("end measuing\n")
 			time.Sleep(time.Second * 15)
 		}
 	}()
