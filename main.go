@@ -208,6 +208,7 @@ func main() {
 	log.Printf("MH-Z19 bmxice:[%s]\n", *co2Addr)
 	connConfig := z19.CreateSerialConfig()
 	connConfig.Name = *co2Addr
+	connConfig.ReadTimeout = time.Second * 5
 	var mhz *serial.Port
 	mhz, err = serial.OpenPort(connConfig)
 	if err != nil {
