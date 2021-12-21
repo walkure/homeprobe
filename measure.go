@@ -5,6 +5,7 @@ import (
 	"github.com/tarm/serial"
 	"math"
 	"time"
+	"log"
 
 	"periph.io/x/conn/v3/physic"
 
@@ -17,22 +18,20 @@ import (
 	"go.uber.org/multierr"
 )
 
-func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, z19dev *serial.Port, start time.Time) error {
+func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, start time.Time) error {
 
 	warmingUp := time.Now().Before(start)
 
 	if warmingUp {
 		logPrintf("Warming Up until:%v\n", start)
 	}
-	fmt.Printf("BME %p,CCS %p,SHT %p,Z19 %p\n",bme,ccs,sht,z19dev)
+	fmt.Printf("BME %p,CCS %p,SHT %p\n",bme,ccs,sht)
 
 	var errors error
 
-	if z19dev != nil {
-		logPrintf("Begin MHZ19\n")
-		multierr.AppendInto(&errors, measureMHZ19(z19dev, warmingUp))
-		logPrintf("End MHZ19\n")
-	}
+	logPrintf("Begin MHZ19\n")
+	multierr.AppendInto(&errors, measureMHZ19(warmingUp))
+	logPrintf("End MHZ19\n")
 
 	var inTemp, inHumid float64
 	var err error
@@ -143,19 +142,32 @@ func measureCCS811(ccs *ccs811.Dev, inTemp float64, inHumid float64, warmingUp b
 	return nil
 }
 
-func measureMHZ19(z19dev *serial.Port, warmingUp bool) error {
-	logPrintf("BeginMHZ19Read\n")
-	concentration, err := z19.TakeReading(z19dev)
+func measureMHZ19(warmingUp bool) error {
+	connConfig := z19.CreateSerialConfig()
+	connConfig.Name = *co2Addr
+	connConfig.ReadTimeout = time.Second * 5
+
+	mhz, err := serial.OpenPort(connConfig)
+	if err != nil {
+		log.Printf("MH-Z19 open error: ", err)
+		return fmt.Errorf("MH-Z19 open error:%w",err)
+	}
+	defer mhz.Close()
+	logPrintf("MH-Z19 activated\n")
+
+	concentration, err := z19.TakeReading(mhz)
 	logPrintf("EndMHZ19Read\n")
 	if err != nil {
-		fmt.Print("Z19Err:",err)
-		return fmt.Errorf("Z19: %w", err)
+		log.Printf("MH-Z19 read error: ", err)
+		return fmt.Errorf("MH-Z19 read error: %w", err)
 	}
+
 	logPrintf("co2=%dppm\n", concentration)
 
 	if !warmingUp {
 		homeCO2.WithLabelValues("inside").Set(float64(concentration))
 	}
+
 	return nil
 }
 

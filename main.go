@@ -12,9 +12,6 @@ import (
 	"periph.io/x/devices/v3/bmxx80"
 	"periph.io/x/devices/v3/ccs811"
 
-	z19 "github.com/eternal-flame-AD/mh-z19"
-	"github.com/tarm/serial"
-
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -204,31 +201,17 @@ func main() {
 		logPrintf("SHT3x activated\n")
 	}
 
-	// Open MH-Z19
-	log.Printf("MH-Z19 bmxice:[%s]\n", *co2Addr)
-	connConfig := z19.CreateSerialConfig()
-	connConfig.Name = *co2Addr
-	connConfig.ReadTimeout = time.Second * 5
-	var mhz *serial.Port
-	mhz, err = serial.OpenPort(connConfig)
-	if err != nil {
-		log.Printf("MH-Z19 open error: ", err)
-		mhz = nil
-	} else {
-		defer mhz.Close()
-		logPrintf("MH-Z19 activated\n")
-	}
-
-	if bmx == nil && ccs == nil && mhz == nil && sht == nil {
+	if bmx == nil && ccs == nil && sht == nil {
 		log.Fatal("no sensor detected.")
 	}
+	log.Printf("MH-Z19 device:[%s]\n", *co2Addr)
 
 	go func() {
 		start := time.Now().Add(warming_seconds * time.Second)
 		logPrintf("start measuring\n")
 		for {
 			logPrintf("begin measuring\n")
-			if err := measureMetrics(bmx, ccs, sht, mhz, start); err != nil {
+			if err := measureMetrics(bmx, ccs, sht, start); err != nil {
 				log.Printf("Error:%+v", err)
 			}
 			logPrintf("end measuing\n")
