@@ -42,7 +42,7 @@ func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, z19dev *serial
 		inTemp, inHumid, err = measureBMxx80(bme, warmingUp)
 		fmt.Printf("BME2xx Temp:%v Humid:%v\n",inTemp,inHumid)
 		if err != nil {
-			multierr.Append(errors, err)
+			multierr.AppendInto(&errors, err)
 		}
 	}
 
@@ -51,7 +51,7 @@ func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, z19dev *serial
 		inTemp, inHumid, err = measureSHT3x(sht, warmingUp)
 		fmt.Printf("SHT3x Temp:%v Humid:%v\n",inTemp,inHumid)
 		if err != nil {
-			multierr.Append(errors, err)
+			multierr.AppendInto(&errors, err)
 		}
 	}
 
