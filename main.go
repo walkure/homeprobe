@@ -123,6 +123,8 @@ func init() {
 	promReg.MustRegister(homeUVIndex)
 }
 
+var failCount int
+
 func main() {
 
 	c := cap.GetProc()
@@ -136,11 +138,13 @@ func main() {
 		log.Fatal("initialize error: ", err)
 	}
 
+	beacon := &wxbeacon2.Device{}
 	if *wxBeacon2ID == "" {
 		log.Printf("WxBeacon2 ID not set")
 	} else {
 		log.Printf("WxBeacon2 ID:[%s]\n", *wxBeacon2ID)
-		if err := wxbeacon2.WaitForReceiveData(*wxBeacon2ID, receiveWxBeacon); err != nil {
+		beacon = wxbeacon2.NewDevice(*wxBeacon2ID, receiveWxBeacon)
+		if err := beacon.WaitForReceiveData(); err != nil {
 			log.Printf("WxBeacon2 error: ", err)
 		}
 	}
@@ -222,8 +226,14 @@ func main() {
 	watchdog.Update()
 	go func() {
 		for {
-			if watchdog.IsElapsed(time.Minute * 4) {
-				log.Fatal("Watchdog expired!")
+			if watchdog.IsElapsed(time.Minute * 7) {
+				log.Printf("beacon receiving restart")
+				beacon.Stop()
+				beacon.WaitForReceiveData()
+				failCount = failCount + 1
+				if failCount > 5{
+					log.Fatal("failcount overflow")
+				}
 			}
 			time.Sleep(time.Minute)
 		}
@@ -239,6 +249,8 @@ func logPrintf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 	fmt.Printf("%s %s", now, msg)
 }
+
+var pastSequence byte
 
 func receiveWxBeacon(data interface{}) {
 	switch v := data.(type) {
@@ -267,6 +279,9 @@ func receiveWxBeacon(data interface{}) {
 		absHumid := calcAbsoluteHumidity(v.Temp, v.Humid)
 		homeAbsHumid.WithLabelValues("outside").Set(round(absHumid, 2))
 
-		watchdog.Update()
+		if pastSequence != v.Sequence {
+			pastSequence = v.Sequence
+			watchdog.Update()
+		}
 	}
 }
