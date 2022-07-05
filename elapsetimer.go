@@ -20,3 +20,8 @@ func (tm *watchdogTimer) IsElapsed(interval time.Duration) bool {
 
 	return now > (et + int64(interval.Seconds()))
 }
+
+func (tm watchdogTimer) LastUpdated() time.Time {
+	et := atomic.LoadInt64(&(tm.epoch))
+	return time.Unix(et,0)
+}

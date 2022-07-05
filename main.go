@@ -234,6 +234,8 @@ func main() {
 				if failCount > 5{
 					log.Fatal("failcount overflow")
 				}
+			}else{
+				logPrintf("watchdog not elapsed(%s)\n",watchdog.LastUpdated().Format(time.RFC1123Z))
 			}
 			time.Sleep(time.Minute)
 		}
