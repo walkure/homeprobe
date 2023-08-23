@@ -29,9 +29,13 @@ func measureMetrics(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, start time.Tim
 
 	var errors error
 
-	logPrintf("Begin MHZ19\n")
-	multierr.AppendInto(&errors, measureMHZ19(warmingUp))
-	logPrintf("End MHZ19\n")
+	if *co2Addr != "" {
+		logPrintf("Begin MHZ19\n")
+		multierr.AppendInto(&errors, measureMHZ19(warmingUp))
+		logPrintf("End MHZ19\n")
+	}else{
+		logPrintf("No MHZ19\n")
+	}
 
 	var inTemp, inHumid float64
 	var err error
