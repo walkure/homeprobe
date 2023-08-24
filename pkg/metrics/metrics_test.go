@@ -25,7 +25,6 @@ func TestMetricSet(t *testing.T) {
 			Precision: 2,
 		})
 
-
 	var buf bytes.Buffer
 	err := s.Write(&buf)
 	if err != nil {
@@ -173,7 +172,6 @@ func TestMetricStringerValueItem(t *testing.T) {
 			Precision: 2,
 		},
 	}
-
 
 	var buf bytes.Buffer
 	err := v.writeValue("metricName", &buf)

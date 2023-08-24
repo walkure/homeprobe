@@ -10,7 +10,7 @@ import (
 
 type MetricSet map[string]Metric
 
-func (s MetricSet) Add(m Metric){
+func (s MetricSet) Add(m Metric) {
 	s[m.entityName()] = m
 }
 
@@ -70,14 +70,14 @@ func (m metricEntity) outputMetric(w io.Writer) error {
 	io.WriteString(w, fmt.Sprintf("# HELP %s %s\n", m.name, m.help))
 	io.WriteString(w, fmt.Sprintf("# TYPE %s %s\n", m.name, m.metricType))
 	for _, k := range util.Keys(m.values) {
-		m.values[k].writeValue(m.name,w)
+		m.values[k].writeValue(m.name, w)
 	}
 
 	return nil
 }
 
 type metricValueItem interface {
-	writeValue(name string,w io.Writer) error
+	writeValue(name string, w io.Writer) error
 }
 
 // metricStringerItem is a stringer metric value with labels
@@ -86,7 +86,7 @@ type metricStringerItem struct {
 	value  fmt.Stringer
 }
 
-func (m metricStringerItem) writeValue(name string,w io.Writer) error {
+func (m metricStringerItem) writeValue(name string, w io.Writer) error {
 	io.WriteString(w, name)
 	io.WriteString(w, m.labels.String())
 	io.WriteString(w, " ")
