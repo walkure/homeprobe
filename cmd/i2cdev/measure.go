@@ -9,6 +9,7 @@ import (
 	"periph.io/x/devices/v3/ccs811"
 
 	"github.com/walkure/homeprobe/pkg/metrics"
+	"github.com/walkure/homeprobe/pkg/weather"
 
 	sht3x "github.com/d2r2/go-sht3x"
 )
@@ -78,7 +79,7 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, e
 	absoluteHumidity.Set(
 		labels,
 		metrics.RoundFloat64{
-			Value: calcAbsoluteHumidity(inTemp, inHumid),
+			Value: weather.AbsoluteHumidity(inTemp, inHumid),
 			Precision: 2,
 		},
 	)
@@ -86,7 +87,7 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, e
 	disconfortIndex.Set(
 		labels,
 		metrics.RoundFloat64{
-			Value: calcDisconfortIndex(inTemp, inHumid),
+			Value: weather.DisconfortIndex(inTemp, inHumid),
 			Precision: 2,
 		},
 	)
@@ -128,7 +129,7 @@ func measureBMxx80(bme *bmxx80.Dev) (float64, float64, float64, error) {
 
 	inTemp := float64(temp.Celsius())
 	inHumid := float64(env.Humidity) / float64(physic.PercentRH)
-	hPaMSL := calcMeanHeightAirPressure(float64(env.Pressure)/float64(physic.Pascal*100), inTemp, *aboveSeaLevel)
+	hPaMSL := weather.MeanHeightAirPressure(float64(env.Pressure)/float64(physic.Pascal*100), inTemp, *aboveSeaLevel)
 
 	return inTemp, inHumid, hPaMSL, nil
 }
