@@ -3,61 +3,119 @@ package main
 import (
 	"fmt"
 	//"log"
-	"math"
 
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/devices/v3/bmxx80"
 	"periph.io/x/devices/v3/ccs811"
 
+	"github.com/walkure/homeprobe/pkg/metrics"
+
 	sht3x "github.com/d2r2/go-sht3x"
 )
 
-type metrics struct{
-	inTemp float64
-	inHumid float64
-	inHumidAbs float64
-	disconfortIndex float64
-	hPaMSL float64
-	eCO2 float64
-	voc float64
-}
+func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, error) {
 
-
-func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics, error) {
-
-	var inTemp, inHumid, hPaMSL, eCO2, voc float64
+	var inTemp, inHumid float64
 	var err error
 
+	s := metrics.MetricSet{}
+	temperature := metrics.NewGauge("temperature", "Temperature")
+	relativeHumidity := metrics.NewGauge("relative_humidity", "Relative Humidity percent")
+	absoluteHumidity := metrics.NewGauge("absolute_humidity", "Absolute Humidity g/m3")
+	disconfortIndex := metrics.NewGauge("disconfort_index", "Disconfort Index")
+	airPressure := metrics.NewGauge("pressure", "Air Pressure hPa")
+	eCO2ppm := metrics.NewGauge("eco2", "eCO2 ppm")
+	vocppb := metrics.NewGauge("voc", "VOC ppb")
+
+	s.Add(temperature)
+	s.Add(relativeHumidity)
+	s.Add(absoluteHumidity)
+	s.Add(disconfortIndex)
+	s.Add(airPressure)
+	s.Add(eCO2ppm)
+	s.Add(vocppb)
+
+	labels := metrics.Labels{"place":"inside"}
+
 	if bme != nil {
+		var hPaMSL float64
 		inTemp, inHumid, hPaMSL, err = measureBMxx80(bme)
 		if err != nil {
-			return metrics{}, err
+			return nil, err
 		}
-	} else {
-		hPaMSL = math.NaN()
+		airPressure.Set(
+			labels,
+			metrics.RoundFloat64{
+				Value: hPaMSL,
+				Precision: 2,
+			},
+		)
 	}
 
 	if sht != nil {
 		inTemp, inHumid, err = measureSHT3x(sht)
 		if err != nil {
-			return metrics{}, err
+			return nil, err
 		}
 	}
+
+	temperature.Set(
+		labels,
+		metrics.RoundFloat64{
+			Value: inTemp,
+			Precision: 2,
+		},
+	)
+
+	relativeHumidity.Set(
+		labels,
+		metrics.RoundFloat64{
+			Value: inHumid,
+			Precision: 2,
+		},
+	)
+
+	absoluteHumidity.Set(
+		labels,
+		metrics.RoundFloat64{
+			Value: calcAbsoluteHumidity(inTemp, inHumid),
+			Precision: 2,
+		},
+	)
+
+	disconfortIndex.Set(
+		labels,
+		metrics.RoundFloat64{
+			Value: calcDisconfortIndex(inTemp, inHumid),
+			Precision: 2,
+		},
+	)
 
 	if ccs != nil {
+		var eCO2, voc float64
 		eCO2, voc, err = measureCCS811(inTemp, inHumid, ccs)
 		if err != nil {
-			return metrics{}, err
+			return nil, err
 		}
-	} else {
-		eCO2 = math.NaN()
-		voc = math.NaN()
+		eCO2ppm.Set(
+			labels,
+			metrics.RoundFloat64{
+				Value: eCO2,
+				Precision: 2,
+			},
+		)
+
+		vocppb.Set(
+			labels,
+			metrics.RoundFloat64{
+				Value: voc,
+				Precision: 2,
+			},
+		)
 	}
 
-	disconfortIndex := calcDisconfortIndex(inTemp, inHumid)
-	inHumidAbs := calcAbsoluteHumidity(inTemp, inHumid)
 
-	return metrics{inTemp, inHumid, inHumidAbs, disconfortIndex, hPaMSL, eCO2, voc}, nil
+	return s, nil
 }
 
 func measureBMxx80(bme *bmxx80.Dev) (float64, float64, float64, error) {

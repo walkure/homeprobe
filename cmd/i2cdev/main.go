@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"time"
 
@@ -109,47 +108,7 @@ func main() {
 			return
 		}
 
-		if !math.IsNaN(result.inTemp) {
-			fmt.Fprintln(w, "# HELP temperature Temperature")
-			fmt.Fprintln(w, "# TYPE temperature gauge")
-			fmt.Fprintf(w, "temperature{place=\"inside\"} %s\n", roundFormat(result.inTemp, 2))
-		}
-
-		if !math.IsNaN(result.inHumid) {
-			fmt.Fprintln(w, "# HELP relative_humidity Relative Humidity percent")
-			fmt.Fprintln(w, "# TYPE relative_humidity gauge")
-			fmt.Fprintf(w, "relative_humidity{place=\"inside\"} %s\n", roundFormat(result.inHumid, 2))
-		}
-
-		if !math.IsNaN(result.inHumidAbs) {
-			fmt.Fprintln(w, "# HELP absolute_humidity Absolute Humidity g/m^3")
-			fmt.Fprintln(w, "# TYPE absolute_humidity gauge")
-			fmt.Fprintf(w, "absolute_humidity{place=\"inside\"} %s\n", roundFormat(result.inHumidAbs, 2))
-		}
-
-		if !math.IsNaN(result.disconfortIndex) {
-			fmt.Fprintln(w, "# HELP disconfort_index Disconfort Index")
-			fmt.Fprintln(w, "# TYPE disconfort_index gauge")
-			fmt.Fprintf(w, "disconfort_index{place=\"inside\"} %s\n", roundFormat(result.disconfortIndex, 2))
-		}
-
-		if !math.IsNaN(result.hPaMSL) {
-			fmt.Fprintln(w, "# HELP pressure Pressure hPa")
-			fmt.Fprintln(w, "# TYPE pressure gauge")
-			fmt.Fprintf(w, "pressure{place=\"inside\"} %s\n", roundFormat(result.hPaMSL, 2))
-		}
-
-		if !math.IsNaN(result.eCO2) {
-			fmt.Fprintln(w, "# HELP eco2 eCO2 ppm")
-			fmt.Fprintln(w, "# TYPE eco2 gauge")
-			fmt.Fprintf(w, "eCO2{place=\"inside\"} %f\n", result.eCO2)
-		}
-
-		if !math.IsNaN(result.voc) {
-			fmt.Fprintln(w, "# HELP voc VOC ppb")
-			fmt.Fprintln(w, "# TYPE voc gauge")
-			fmt.Fprintf(w, "voc{place=\"inside\"} %f\n", result.voc)
-		}
+		result.Write(w)
 
 	})
 
