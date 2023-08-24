@@ -95,6 +95,42 @@ testValue{1="b",2="a"} 1134.44
 	}
 }
 
+func TestGaugeMetricMultipleAndUpdate(t *testing.T) {
+	v := NewGauge("testValue", "testHelp")
+	v.Set(Labels{"1": "b", "2": "a"},
+		RoundFloat64{
+			Value:     1134.43543,
+			Precision: 2,
+		})
+	v.Set(Labels{"1": "b", "2": "a"},
+		RoundFloat64{
+			Value:     2134.43543,
+			Precision: 2,
+		})
+	v.Set(Labels{"1": "c", "2": "a"},
+		RoundFloat64{
+			Value:     3134.43543,
+			Precision: 2,
+		})
+	var buf bytes.Buffer
+	err := v.outputMetric(&buf)
+	if err != nil {
+		t.Errorf("gaugeMetric.outputMetric() failed: %v", err)
+	}
+
+	got := buf.String()
+
+	want := `# HELP testValue testHelp
+# TYPE testValue gauge
+testValue{1="b",2="a"} 2134.44
+testValue{1="c",2="a"} 3134.44
+`
+	if got != want {
+		t.Errorf("gaugeMetric.outputMetric() failed: got:%q want:%q", got, want)
+	}
+
+}
+
 func TestMetricEntityToString(t *testing.T) {
 	v := metricEntity{
 		name:       "testName",
