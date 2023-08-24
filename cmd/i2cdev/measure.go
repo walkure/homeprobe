@@ -12,7 +12,18 @@ import (
 	sht3x "github.com/d2r2/go-sht3x"
 )
 
-func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (float64, float64, float64, float64, float64, float64, float64, error) {
+type metrics struct{
+	inTemp float64
+	inHumid float64
+	inHumidAbs float64
+	disconfortIndex float64
+	hPaMSL float64
+	eCO2 float64
+	voc float64
+}
+
+
+func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics, error) {
 
 	var inTemp, inHumid, hPaMSL, eCO2, voc float64
 	var err error
@@ -20,7 +31,7 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (float64, float64, fl
 	if bme != nil {
 		inTemp, inHumid, hPaMSL, err = measureBMxx80(bme)
 		if err != nil {
-			return 0, 0, 0, 0, 0, 0, 0, err
+			return metrics{}, err
 		}
 	} else {
 		hPaMSL = math.NaN()
@@ -29,14 +40,14 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (float64, float64, fl
 	if sht != nil {
 		inTemp, inHumid, err = measureSHT3x(sht)
 		if err != nil {
-			return 0, 0, 0, 0, 0, 0, 0, err
+			return metrics{}, err
 		}
 	}
 
 	if ccs != nil {
 		eCO2, voc, err = measureCCS811(inTemp, inHumid, ccs)
 		if err != nil {
-			return 0, 0, 0, 0, 0, 0, 0, err
+			return metrics{}, err
 		}
 	} else {
 		eCO2 = math.NaN()
@@ -46,7 +57,7 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (float64, float64, fl
 	disconfortIndex := calcDisconfortIndex(inTemp, inHumid)
 	inHumidAbs := calcAbsoluteHumidity(inTemp, inHumid)
 
-	return inTemp, inHumid, inHumidAbs, disconfortIndex, hPaMSL, eCO2, voc, nil
+	return metrics{inTemp, inHumid, inHumidAbs, disconfortIndex, hPaMSL, eCO2, voc}, nil
 }
 
 func measureBMxx80(bme *bmxx80.Dev) (float64, float64, float64, error) {
