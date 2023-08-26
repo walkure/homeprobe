@@ -2,10 +2,12 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/walkure/homeprobe/pkg/util"
 	"io"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/walkure/homeprobe/pkg/util"
 )
 
 type MetricSet map[string]Metric
@@ -15,8 +17,9 @@ func (s MetricSet) Add(m Metric) {
 }
 
 func (s MetricSet) Write(w io.Writer) error {
+	now := time.Now()
 	for _, k := range util.Keys(s) {
-		if err := s[k].outputMetric(w); err != nil {
+		if err := s[k].outputMetric(w, now); err != nil {
 			return err
 		}
 	}
@@ -25,7 +28,7 @@ func (s MetricSet) Write(w io.Writer) error {
 
 func NewGauge(name, help string) Metric {
 	return &metricEntity{
-		name:       name,
+		metricName: name,
 		help:       help,
 		values:     make(map[string]metricValueItem),
 		metricType: "gauge",
@@ -34,13 +37,14 @@ func NewGauge(name, help string) Metric {
 
 type Metric interface {
 	entityName() string
-	outputMetric(w io.Writer) error
+	outputMetric(w io.Writer, now time.Time) error
 	Set(labels Labels, value RoundFloat64)
+	SetWithTimeout(labels Labels, value RoundFloat64, expireAt time.Time)
 }
 
 type metricEntity struct {
 	metricType string
-	name       string
+	metricName string
 	help       string
 	values     map[string]metricValueItem
 }
@@ -48,29 +52,43 @@ type metricEntity struct {
 var noneLabels = make(Labels)
 
 func (m metricEntity) entityName() string {
-	return m.metricType + "_" + m.name
+	return m.metricType + "_" + m.metricName
 }
 
 func (m metricEntity) Set(labels Labels, value RoundFloat64) {
+	m.SetWithTimeout(labels, value, time.Time{})
+}
+
+func (m metricEntity) SetWithTimeout(labels Labels, value RoundFloat64, expireAt time.Time) {
 	if labels == nil {
 		labels = noneLabels
 	}
 	m.values[labels.String()] = metricStringerItem{
-		labels: labels,
-		value:  value,
+		labels:   labels,
+		value:    value,
+		expireAt: expireAt,
 	}
 }
 
-func (m metricEntity) outputMetric(w io.Writer) error {
+func (m metricEntity) outputMetric(w io.Writer, now time.Time) error {
 	if len(m.values) == 0 {
 		// No values, no output
 		return nil
 	}
 
-	io.WriteString(w, fmt.Sprintf("# HELP %s %s\n", m.name, m.help))
-	io.WriteString(w, fmt.Sprintf("# TYPE %s %s\n", m.name, m.metricType))
+	// check timeout
+	for _, k := range m.values {
+		if it, ok := k.(metricExpirableItem); ok {
+			if ok, label := it.expired(now); ok {
+				delete(m.values, label)
+			}
+		}
+	}
+
+	io.WriteString(w, fmt.Sprintf("# HELP %s %s\n", m.metricName, m.help))
+	io.WriteString(w, fmt.Sprintf("# TYPE %s %s\n", m.metricName, m.metricType))
 	for _, k := range util.Keys(m.values) {
-		m.values[k].writeValue(m.name, w)
+		m.values[k].writeValue(m.metricName, w)
 	}
 
 	return nil
@@ -80,10 +98,15 @@ type metricValueItem interface {
 	writeValue(name string, w io.Writer) error
 }
 
+type metricExpirableItem interface {
+	expired(now time.Time) (bool, string)
+}
+
 // metricStringerItem is a stringer metric value with labels
 type metricStringerItem struct {
-	labels Labels
-	value  fmt.Stringer
+	labels   Labels
+	value    fmt.Stringer
+	expireAt time.Time
 }
 
 func (m metricStringerItem) writeValue(name string, w io.Writer) error {
@@ -94,6 +117,19 @@ func (m metricStringerItem) writeValue(name string, w io.Writer) error {
 	io.WriteString(w, "\n")
 
 	return nil
+}
+
+func (m metricStringerItem) expired(now time.Time) (bool, string) {
+	if m.expireAt.IsZero() {
+		return false, ""
+	}
+
+	// now >= expireAt
+	if !now.Before(m.expireAt) {
+		return true, m.labels.String()
+	}
+
+	return false, ""
 }
 
 // Labels is a set of labels for a metric

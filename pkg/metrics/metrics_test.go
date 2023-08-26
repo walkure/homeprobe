@@ -3,7 +3,12 @@ package metrics
 import (
 	"bytes"
 	"testing"
+	"time"
 )
+
+var testBeforeNow = time.Date(2000, 10, 10, 11, 11, 10, 0, time.UTC)
+var testNow = time.Date(2000, 10, 10, 11, 11, 11, 0, time.UTC)
+var testAfterNow = time.Date(2000, 10, 10, 11, 11, 12, 0, time.UTC)
 
 func TestMetricSet(t *testing.T) {
 
@@ -53,7 +58,7 @@ func TestGaugeMetricNoLabel(t *testing.T) {
 		})
 
 	var buf bytes.Buffer
-	err := v.outputMetric(&buf)
+	err := v.outputMetric(&buf, testNow)
 	if err != nil {
 		t.Errorf("gaugeMetric.outputMetric() failed: %v", err)
 	}
@@ -78,7 +83,7 @@ func TestGaugeMetric(t *testing.T) {
 		})
 
 	var buf bytes.Buffer
-	err := v.outputMetric(&buf)
+	err := v.outputMetric(&buf, testNow)
 	if err != nil {
 		t.Errorf("gaugeMetric.outputMetric() failed: %v", err)
 	}
@@ -112,7 +117,7 @@ func TestGaugeMetricMultipleAndUpdate(t *testing.T) {
 			Precision: 2,
 		})
 	var buf bytes.Buffer
-	err := v.outputMetric(&buf)
+	err := v.outputMetric(&buf, testNow)
 	if err != nil {
 		t.Errorf("gaugeMetric.outputMetric() failed: %v", err)
 	}
@@ -130,9 +135,59 @@ testValue{1="c",2="a"} 3134.44
 
 }
 
+func TestMetricExpiration(t *testing.T) {
+	v := metricEntity{
+		metricName: "testName",
+		help:       "testHelp",
+		metricType: "testType",
+		values: map[string]metricValueItem{
+			"{expireAt=\"old\"}": metricStringerItem{
+				labels: Labels{"expireAt": "old"},
+				value: RoundFloat64{
+					Value:     1134.43543,
+					Precision: 2,
+				},
+				expireAt: testBeforeNow,
+			},
+			"{expireAt=\"now\"}": metricStringerItem{
+				labels: Labels{"expireAt": "now"},
+				value: RoundFloat64{
+					Value:     1134.43543,
+					Precision: 2,
+				},
+				expireAt: testNow,
+			},
+			"{expireAt=\"new\"}": metricStringerItem{
+				labels: Labels{"expireAt": "new"},
+				value: RoundFloat64{
+					Value:     1134.43543,
+					Precision: 2,
+				},
+				expireAt: testAfterNow,
+			},
+		},
+	}
+
+	want := `# HELP testName testHelp
+# TYPE testName testType
+testName{expireAt="new"} 1134.44
+`
+	var buf bytes.Buffer
+	err := v.outputMetric(&buf, testNow)
+	if err != nil {
+		t.Errorf("TestMetricExpiration.outputMetric() failed: %v", err)
+	}
+
+	got := buf.String()
+	if got != want {
+		t.Errorf("TestMetricExpiration.outputMetric() failed: got:%q want:%q", got, want)
+	}
+
+}
+
 func TestMetricEntityToString(t *testing.T) {
 	v := metricEntity{
-		name:       "testName",
+		metricName: "testName",
 		help:       "testHelp",
 		metricType: "testType",
 		values: map[string]metricValueItem{
@@ -151,7 +206,7 @@ func TestMetricEntityToString(t *testing.T) {
 testName{1="b",2="a"} 1134.44
 `
 	var buf bytes.Buffer
-	err := v.outputMetric(&buf)
+	err := v.outputMetric(&buf, testNow)
 	if err != nil {
 		t.Errorf("metricEntity.outputMetric() failed: %v", err)
 	}
