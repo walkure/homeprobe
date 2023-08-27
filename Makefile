@@ -24,4 +24,4 @@ build: $(BINARIES)
 
 # build binary
 $(BINARIES): $(GO_FILES)
-	go build -o $@ $(@:$(BINDIR)/%(EXPORTER)=$(ROOT_MODULE)/cmd/%)
+	go build -o $@ $(@:$(BINDIR)/%$(EXPORTER)=$(ROOT_MODULE)/cmd/%)
