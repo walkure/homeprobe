@@ -77,10 +77,6 @@ func (m *metricEntity) SetWithTimeout(labels Labels, value RoundFloat64, expireA
 func (m *metricEntity) outputMetric(w io.Writer, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if len(m.values) == 0 {
-		// No values, no output
-		return nil
-	}
 
 	// check timeout
 	for _, k := range m.values {
@@ -89,6 +85,11 @@ func (m *metricEntity) outputMetric(w io.Writer, now time.Time) error {
 				delete(m.values, label)
 			}
 		}
+	}
+
+	if len(m.values) == 0 {
+		// No values, no output
+		return nil
 	}
 
 	io.WriteString(w, fmt.Sprintf("# HELP %s %s\n", m.metricName, m.help))
