@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/walkure/homeprobe/pkg/util"
@@ -47,22 +48,25 @@ type metricEntity struct {
 	metricName string
 	help       string
 	values     map[string]metricValueItem
+	mu         sync.Mutex
 }
 
 var noneLabels = make(Labels)
 
-func (m metricEntity) entityName() string {
+func (m *metricEntity) entityName() string {
 	return m.metricType + "_" + m.metricName
 }
 
-func (m metricEntity) Set(labels Labels, value RoundFloat64) {
+func (m *metricEntity) Set(labels Labels, value RoundFloat64) {
 	m.SetWithTimeout(labels, value, time.Time{})
 }
 
-func (m metricEntity) SetWithTimeout(labels Labels, value RoundFloat64, expireAt time.Time) {
+func (m *metricEntity) SetWithTimeout(labels Labels, value RoundFloat64, expireAt time.Time) {
 	if labels == nil {
 		labels = noneLabels
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.values[labels.String()] = metricStringerItem{
 		labels:   labels,
 		value:    value,
@@ -70,7 +74,9 @@ func (m metricEntity) SetWithTimeout(labels Labels, value RoundFloat64, expireAt
 	}
 }
 
-func (m metricEntity) outputMetric(w io.Writer, now time.Time) error {
+func (m *metricEntity) outputMetric(w io.Writer, now time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if len(m.values) == 0 {
 		// No values, no output
 		return nil
