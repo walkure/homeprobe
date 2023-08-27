@@ -15,8 +15,7 @@ func TestMetricSet(t *testing.T) {
 	s := MetricSet{}
 	v1 := NewGauge("testValue1", "testHelp1")
 	v2 := NewGauge("testValue2", "testHelp2")
-	s.Add(v1)
-	s.Add(v2)
+	s.Add(v1, v2)
 
 	v1.Set(Labels{"1": "b", "2": "a"},
 		RoundFloat64{

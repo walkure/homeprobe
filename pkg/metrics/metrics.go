@@ -13,8 +13,10 @@ import (
 
 type MetricSet map[string]Metric
 
-func (s MetricSet) Add(m Metric) {
-	s[m.entityName()] = m
+func (s MetricSet) Add(m ...Metric) {
+	for _, it := range m {
+		s[it.entityName()] = it
+	}
 }
 
 func (s MetricSet) Write(w io.Writer) error {
