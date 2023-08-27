@@ -19,9 +19,9 @@ Goで書いています。(go version go1.21.0 linux/arm)
 
 # ビルド
 
- `make` で `co2`/`i2cdev`/`wxbeacon2`の3バイナリを作ります。
+ `make` で `co2`/`i2cdev`/`wxbeacon2`の3バイナリを作ります。 `./bin`にバイナリを吐くので、`sudo mv ./bin/* /usr/local/bin/`などで。
 
- `./bin`にバイナリを吐くので、`sudo mv ./bin/* /usr/local/bin/`などで。
+ GitHub Actionsでarmとarm64のビルドを作って[Release](https://github.com/walkure/homeprobe/releases)に入るようにしてあります。
 
 # 起動設定
 
