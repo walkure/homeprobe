@@ -9,7 +9,7 @@ require (
 	github.com/eternal-flame-AD/mh-z19 v0.0.0-20190331151235-afa8347325ff
 	github.com/prometheus/client_golang v1.10.0
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
-	github.com/walkure/go-wxbeacon2 v0.0.0-20220702183010-39776edbeb70
+	github.com/walkure/go-wxbeacon2 v0.0.0-20230827032803-5484a74803a0
 	go.uber.org/multierr v1.7.0
 	kernel.org/pub/linux/libs/security/libcap/cap v1.2.49
 	periph.io/x/conn/v3 v3.6.7
@@ -19,21 +19,17 @@ require (
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bettercap/gatt v0.0.0-20210514133428-df6e615f2f67 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/d2r2/go-shell v0.0.0-20211022052110-f591c27e3e2e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
-	github.com/mattn/go-colorable v0.1.8 // indirect
-	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
-	github.com/mgutz/logxi v0.0.0-20161027140823-aebf8a7d67ab // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.18.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/walkure/gatt v0.0.0-20230826131622-e9b7a408d1e1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/sys v0.0.0-20210503173754-0981d6026fa6 // indirect
+	golang.org/x/sys v0.11.0 // indirect
 	google.golang.org/protobuf v1.23.0 // indirect
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.49 // indirect
 )
