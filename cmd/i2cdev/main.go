@@ -44,7 +44,7 @@ func main() {
 	var bmx *bmxx80.Dev
 	bmx, err = bmxx80.NewI2C(bus, bme280_bus, &bmxx80.DefaultOpts)
 	if err != nil {
-		log.Printf("BMxx80 error: ", err)
+		log.Printf("BMxx80 error: %v", err)
 		bmx = nil
 	} else {
 		defer bmx.Halt()
@@ -58,12 +58,12 @@ func main() {
 		MeasurementMode:    ccs811.MeasurementModeConstant250,
 		InterruptWhenReady: false, UseThreshold: false})
 	if err != nil {
-		log.Printf("CCS811 open error: ", err)
+		log.Printf("CCS811 open error: %v", err)
 		ccs = nil
 	} else {
 		// Start CCS811
 		if err = ccs.StartSensorApp(); err != nil {
-			log.Printf("CCS811 start error: ", err)
+			log.Printf("CCS811 start error: %v", err)
 			ccs = nil
 		}
 		log.Printf("CCS811 activated\n")
@@ -73,13 +73,13 @@ func main() {
 	var sht *SHT3x
 	sht, err = NewSHT3x(sht3x_bus)
 	if err != nil {
-		log.Printf("SHT3x open error: ", err)
+		log.Printf("SHT3x open error: %v", err)
 		sht = nil
 	} else {
 		defer sht.Close()
 		// Reset SHT3x
 		if err = sht.Reset(); err != nil {
-			log.Printf("SHT3x start error: ", err)
+			log.Printf("SHT3x start error: %v", err)
 			sht = nil
 		}
 		log.Printf("SHT3x activated\n")
