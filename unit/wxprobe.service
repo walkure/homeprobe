@@ -1,0 +1,18 @@
+[Unit]
+Description = WxBeacon2 Exporter
+
+[Service]
+Type                = simple
+StandardOutput      = journal
+StandardError       = journal
+WorkingDirectory    = /usr/local/bin
+ExecStart           = /usr/local/bin/wxbeacon2-exporter --wxbeacon=ZZ:ZZ:ZZ:ZZ:ZZ:ZZ --above_sea_level=67
+KillMode            = process
+KillSignal          = SIGINT
+Restart             = always
+RestartSec          = 10s
+DynamicUser         = yes
+AmbientCapabilities = CAP_NET_ADMIN
+
+[Install]
+WantedBy = multi-user.target

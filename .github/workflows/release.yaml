@@ -1,0 +1,38 @@
+name: release
+on:
+  push:
+    tags:
+    - "v*"
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ['arm','arm64']
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: ./go.mod
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Build
+        env:
+          GOARCH: ${{ matrix.arch }}
+        run: make build
+
+      - name: Create Package
+        run:
+          tar czvf homeprobe-${{ github.ref_name }}-${{ matrix.arch }}.tar.gz
+          ./bin/*
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: homeprobe-${{ github.ref_name }}-${{ matrix.arch }}.tar.gz
