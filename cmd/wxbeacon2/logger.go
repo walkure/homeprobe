@@ -3,6 +3,8 @@ package main
 import (
 	"log/slog"
 	"os"
+
+	"github.com/walkure/go-wxbeacon2"
 )
 
 var logger = slog.Default()
@@ -10,7 +12,7 @@ var logger = slog.Default()
 func newLogger(level string) {
 	var lv slog.Level
 
-	if level == "" {
+	if level != "" {
 		err := lv.UnmarshalText([]byte(level))
 		if err != nil {
 			lv = slog.LevelInfo
@@ -22,4 +24,6 @@ func newLogger(level string) {
 	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: lv,
 	}))
+
+	wxbeacon2.SetLogger(logger)
 }
