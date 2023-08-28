@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -71,29 +72,62 @@ func wxDataCallback(obj interface{}) {
 	wxbeaconData.setData(data)
 }
 
+var lastHumid, lastTemp float64 = math.NaN(), math.NaN()
+
+// Data range over SeqId
+const tempRange = 8
+const humidRange = 10
+
 func (m *envData) setData(data wxbeacon2.WxEPData) {
 
 	labels := metrics.Labels{"place": "outside"}
 	// TTL: 15 mins
 	expireAt := time.Now().Add(15 * time.Minute)
 
-	m.temp.SetWithTimeout(
+	dataError := false
+
+	if math.Abs(data.Temp-lastTemp) > tempRange {
+		dataError = true
+		logger.Warn("temperature data error", slog.Float64("temp", data.Temp), slog.Float64("lastTemp", lastTemp))
+	} else {
+		m.temp.SetWithTimeout(
+			labels,
+			metrics.RoundFloat64{
+				Value:     data.Temp,
+				Precision: 2,
+			},
+			expireAt,
+		)
+		lastTemp = data.Temp
+	}
+
+	if math.Abs(data.Humid-lastHumid) > humidRange {
+		dataError = true
+		logger.Warn("humidity data error", slog.Float64("humid", data.Humid), slog.Float64("lastHumid", lastHumid))
+	} else {
+		m.relHumid.SetWithTimeout(
+			labels,
+			metrics.RoundFloat64{
+				Value:     data.Humid,
+				Precision: 2,
+			},
+			expireAt,
+		)
+		lastHumid = data.Humid
+	}
+
+	m.vBattery.SetWithTimeout(
 		labels,
 		metrics.RoundFloat64{
-			Value:     data.Temp,
+			Value:     data.VBattery,
 			Precision: 2,
 		},
 		expireAt,
 	)
 
-	m.relHumid.SetWithTimeout(
-		labels,
-		metrics.RoundFloat64{
-			Value:     data.Humid,
-			Precision: 2,
-		},
-		expireAt,
-	)
+	if dataError {
+		return
+	}
 
 	m.absHumid.SetWithTimeout(
 		labels,
@@ -153,15 +187,6 @@ func (m *envData) setData(data wxbeacon2.WxEPData) {
 		labels,
 		metrics.RoundFloat64{
 			Value:     data.HeatStroke,
-			Precision: 2,
-		},
-		expireAt,
-	)
-
-	m.vBattery.SetWithTimeout(
-		labels,
-		metrics.RoundFloat64{
-			Value:     data.VBattery,
 			Precision: 2,
 		},
 		expireAt,
