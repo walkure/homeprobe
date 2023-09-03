@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -17,6 +17,7 @@ import (
 var promAddr = flag.String("listen", ":9821", "OpenMetrics Exporter Listeing Address")
 var tempOffset = flag.Float64("temp_offset", 0, "Temperature offset")
 var aboveSeaLevel = flag.Float64("above_sea_level", 0, "Height above sea level")
+var logLevel = flag.String("loglevel", "INFO", "Log Level")
 
 const (
 	ccs811_bus      = 0x5b
@@ -28,13 +29,15 @@ const (
 func main() {
 	flag.Parse()
 
+	logger := initLogger(*logLevel)
+
 	if _, err := host.Init(); err != nil {
-		log.Fatal("i2c initialize error: ", err)
+		panic(fmt.Sprint("i2c initialize error: ", err))
 	}
 
 	bus, err := i2creg.Open("")
 	if err != nil {
-		log.Fatal("i2cbus error: ", err)
+		panic(fmt.Sprint("i2cbus error: ", err))
 	}
 	defer bus.Close()
 
@@ -44,11 +47,11 @@ func main() {
 	var bmx *bmxx80.Dev
 	bmx, err = bmxx80.NewI2C(bus, bme280_bus, &bmxx80.DefaultOpts)
 	if err != nil {
-		log.Printf("BMxx80 error: %v", err)
+		logger.Warn("BMxx80 open error", slog.Any("err", err))
 		bmx = nil
 	} else {
 		defer bmx.Halt()
-		log.Printf("BMxx80 activated\n")
+		logger.Info("BMxx80 activated")
 	}
 
 	// 2nd CCS811
@@ -58,37 +61,37 @@ func main() {
 		MeasurementMode:    ccs811.MeasurementModeConstant250,
 		InterruptWhenReady: false, UseThreshold: false})
 	if err != nil {
-		log.Printf("CCS811 open error: %v", err)
+		logger.Warn("CCS811 open error", slog.Any("err", err))
 		ccs = nil
 	} else {
 		// Start CCS811
 		if err = ccs.StartSensorApp(); err != nil {
-			log.Printf("CCS811 start error: %v", err)
+			logger.Error("CCS811 start error", slog.Any("err", err))
 			ccs = nil
 		}
-		log.Printf("CCS811 activated\n")
+		logger.Info("CCS811 activated")
 	}
 
 	// 3rd SHT3x
 	var sht *SHT3x
 	sht, err = NewSHT3x(sht3x_bus)
 	if err != nil {
-		log.Printf("SHT3x open error: %v", err)
+		logger.Warn("SHT3x open error", slog.Any("err", err))
 		sht = nil
 	} else {
 		defer sht.Close()
 		// Reset SHT3x
 		if err = sht.Reset(); err != nil {
-			log.Printf("SHT3x start error: %v", err)
+			logger.Error("SHT3x start error", slog.Any("err", err))
 			sht = nil
 		}
-		log.Printf("SHT3x activated\n")
+		logger.Info("SHT3x activated")
 	}
 	if bmx == nil && sht == nil {
-		log.Fatal("no sensor detected.")
+		panic("no sensor detected.")
 	}
 
-	log.Printf("Temperature offset:%g\n", *tempOffset)
+	logger.Info("Temperature offset set:", slog.Float64("offset", *tempOffset))
 
 	start := time.Now().Add(warming_seconds * time.Second)
 
@@ -96,14 +99,14 @@ func main() {
 		if time.Now().Before(start) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			fmt.Fprintln(w, "")
-			log.Printf("Warming up... %d seconds left\n", start.Sub(time.Now())/time.Second)
+			logger.Info("Warming up..", slog.String("leftSecs", time.Until(start).String()))
 			return
 		}
 
 		result, err := measure(bmx, ccs, sht)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf("Error:%s\n", err.Error())
+			logger.Error("measurement error", slog.Any("err", err))
 			io.WriteString(w, fmt.Sprintf("Error:%s\n", err.Error()))
 			return
 		}
@@ -112,5 +115,6 @@ func main() {
 
 	})
 
-	log.Fatal(http.ListenAndServe(*promAddr, nil))
+	logger.Error("Server stop", slog.Any("err", http.ListenAndServe(*promAddr, nil)))
+
 }

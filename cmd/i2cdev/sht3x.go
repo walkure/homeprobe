@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
+
 	gi2c "github.com/d2r2/go-i2c"
 	sht3x "github.com/d2r2/go-sht3x"
-	logger "github.com/d2r2/go-logger"
-
 )
 
 type SHT3x struct {
@@ -15,9 +14,6 @@ type SHT3x struct {
 
 func NewSHT3x(bus int) (*SHT3x, error) {
 	v := SHT3x{}
-
-	logger.ChangePackageLogLevel("i2c",logger.InfoLevel)
-	logger.ChangePackageLogLevel("sht3x",logger.InfoLevel)
 
 	i2c, err := gi2c.NewI2C(uint8(bus), 1)
 	if err != nil {

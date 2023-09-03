@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/walkure/go-wxbeacon2"
+	loggerFactory "github.com/walkure/homeprobe/pkg/logger"
 	"github.com/walkure/homeprobe/pkg/metrics"
 	"github.com/walkure/homeprobe/pkg/weather"
 )
@@ -67,6 +68,9 @@ func wxDataCallback(obj interface{}) {
 		// sequence not changed.
 		return
 	}
+
+	logger := loggerFactory.GetLogger("wxcallback")
+
 	lastSeqID.Store(uint32(data.Sequence))
 	logger.Info("received", slog.Any("data", data))
 	wxbeaconData.setData(data)
@@ -83,6 +87,8 @@ func (m *envData) setData(data wxbeacon2.WxEPData) {
 	labels := metrics.Labels{"place": "outside"}
 	// TTL: 15 mins
 	expireAt := time.Now().Add(15 * time.Minute)
+
+	logger := loggerFactory.GetLogger("wxsetdata")
 
 	dataError := false
 

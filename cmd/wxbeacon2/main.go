@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/walkure/go-wxbeacon2"
+	loggerFactory "github.com/walkure/homeprobe/pkg/logger"
 
 	"kernel.org/pub/linux/libs/security/libcap/cap"
 )
@@ -18,8 +19,10 @@ var logLevel = flag.String("loglevel", "INFO", "Log Level")
 
 func main() {
 	flag.Parse()
-	newLogger(*logLevel)
+	initLogger(*logLevel)
 	c := cap.GetProc()
+
+	logger := loggerFactory.GetLogger("main")
 
 	logger.Info("procinfo", slog.String("cap", c.String()))
 

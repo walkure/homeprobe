@@ -3,11 +3,13 @@ package metrics
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	loggerFactory "github.com/walkure/homeprobe/pkg/logger"
 	"github.com/walkure/homeprobe/pkg/util"
 )
 
@@ -80,10 +82,17 @@ func (m *metricEntity) outputMetric(w io.Writer, now time.Time) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	logger := loggerFactory.GetLogger("metrics")
+
 	// check timeout
 	for _, k := range m.values {
 		if it, ok := k.(metricExpirableItem); ok {
 			if ok, label := it.expired(now); ok {
+				logger.Warn("expired metrics deleted",
+					slog.String("metric", m.metricName),
+					slog.String("label", label),
+					slog.String("value", m.values[label].valueToString()),
+				)
 				delete(m.values, label)
 			}
 		}
@@ -105,6 +114,7 @@ func (m *metricEntity) outputMetric(w io.Writer, now time.Time) error {
 
 type metricValueItem interface {
 	writeValue(name string, w io.Writer) error
+	valueToString() string
 }
 
 type metricExpirableItem interface {
@@ -126,6 +136,10 @@ func (m metricStringerItem) writeValue(name string, w io.Writer) error {
 	io.WriteString(w, "\n")
 
 	return nil
+}
+
+func (m metricStringerItem) valueToString() string {
+	return m.value.String()
 }
 
 func (m metricStringerItem) expired(now time.Time) (bool, string) {
