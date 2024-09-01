@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ['arm','arm64']
+        arch: ['arm','arm64','amd64']
 
     steps:
       - uses: actions/checkout@v3
