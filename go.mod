@@ -1,6 +1,8 @@
 module github.com/walkure/homeprobe
 
-go 1.21
+go 1.23
+
+toolchain go1.23.0
 
 require (
 	github.com/d2r2/go-i2c v0.0.0-20191123181816-73a8a799d6bc
