@@ -53,23 +53,24 @@ func initEnvData() metrics.MetricSet {
 	return s
 }
 
-func wxDataCallback(obj interface{}) {
+func wxDataCallback(d wxbeacon2.WxData) {
 
 	if wxbeaconData == nil {
 		panic("invoke callback before initialize.")
 	}
 
-	data, ok := obj.(wxbeacon2.WxEPData)
+	data, ok := d.(wxbeacon2.WxEPData)
 	if !ok {
-		panic(fmt.Sprintf("WxBeacon2 not EP mode:%T", obj))
-	}
-
-	if lastSeqID.CompareAndSwap(uint32(data.Sequence), uint32(data.Sequence)) {
-		// sequence not changed.
-		return
+		panic(fmt.Sprintf("WxBeacon2 not EP mode:%T", d))
 	}
 
 	logger := loggerFactory.GetLogger("wxcallback")
+
+	if lastSeqID.CompareAndSwap(uint32(data.Sequence), uint32(data.Sequence)) {
+		// sequence not changed.
+		logger.Debug("sequence not changed", slog.Uint64("seq", uint64(data.Sequence)))
+		return
+	}
 
 	lastSeqID.Store(uint32(data.Sequence))
 	logger.Info("received", slog.Any("data", data))

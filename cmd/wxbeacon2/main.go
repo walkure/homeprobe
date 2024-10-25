@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/walkure/gatt"
 	"github.com/walkure/go-wxbeacon2"
 	loggerFactory "github.com/walkure/homeprobe/pkg/logger"
 
@@ -39,19 +45,61 @@ func main() {
 
 	metrics := initEnvData()
 
-	dev := wxbeacon2.NewDevice(*wxBeacon2ID, wxDataCallback)
-	err := dev.WaitForReceiveData()
+	// Passive scanning
+	d, err := gatt.NewDevice(gatt.LnxSetScanMode(false))
+
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to open device:%v", err))
-		return
+		panic(err)
+	}
+
+	d.Handle(gatt.PeripheralDiscovered(
+		wxbeacon2.HandleWxBeacon2(*wxBeacon2ID, wxDataCallback, nil)))
+
+	d.Init(func(d gatt.Device, s gatt.State) {
+		switch s {
+		case gatt.StatePoweredOn:
+			// allow duplicate
+			d.Scan([]gatt.UUID{}, true)
+			return
+		default:
+			d.StopScanning()
+		}
+	})
+
+	serv := &http.Server{
+		Addr: *promAddr,
 	}
 
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, _ *http.Request) {
 		metrics.Write(w)
 	})
 
-	err = http.ListenAndServe(*promAddr, nil)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	logger.Error("http handler terminated", slog.String("err", err.Error()))
+	go func() {
+		logger.Info("server listening", slog.String("address", serv.Addr))
+
+		if err := serv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("stop serving", slog.String("error", err.Error()))
+		}
+	}()
+	<-ctx.Done()
+
+	d.StopScanning()
+	if err := d.Stop(); err != nil {
+		logger.Error("hci stop", slog.String("error", err.Error()))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	logger.Warn("shutting down server")
+
+	if err := serv.Shutdown(ctx); err != nil {
+		logger.Error("server shutdown", slog.String("error", err.Error()))
+		if err := serv.Close(); err != nil {
+			logger.Error("server close", slog.String("error", err.Error()))
+		}
+	}
 
 }
