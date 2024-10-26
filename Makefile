@@ -26,7 +26,7 @@ build: $(BINARIES)
 $(BINARIES): $(GO_FILES)
 	go build \
 	-ldflags="\
-	-X github.com/walkure/homeprobe/pkg/revision.commit=$(shell git rev-parse --verify --short HEAD) \
+	-X github.com/walkure/homeprobe/pkg/revision.commit=$(shell git rev-parse --verify --short HEAD)$(shell test -z `git status --porcelain` || echo '-dirty') \
 	-X 'github.com/walkure/homeprobe/pkg/revision.tag=$(shell git describe --exact-match --tags 2>/dev/null || echo NO_TAG)' \
 	-X main.binName=$(shell basename $@) \
 	" \
