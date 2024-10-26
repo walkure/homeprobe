@@ -12,6 +12,7 @@ import (
 	z19 "github.com/eternal-flame-AD/mh-z19"
 	"github.com/tarm/serial"
 	loggerFactory "github.com/walkure/homeprobe/pkg/logger"
+	"github.com/walkure/homeprobe/pkg/revision"
 )
 
 var mhz19Addr = flag.String("mhz19", "", "MH-Z19 UART Port")
@@ -20,9 +21,14 @@ var logLevel = flag.String("loglevel", "INFO", "Log Level")
 
 const warmingSeconds = 30
 
+// name of binary file populated at build-time
+var binName = ""
+
 func main() {
 
+	flag.Usage = revision.Usage(binName)
 	flag.Parse()
+
 	logger := loggerFactory.InitalizeLogger(*logLevel)
 
 	log.Printf("MH-Z19 device:[%s]\n", *mhz19Addr)

@@ -14,6 +14,7 @@ import (
 	"github.com/walkure/gatt"
 	"github.com/walkure/go-wxbeacon2"
 	loggerFactory "github.com/walkure/homeprobe/pkg/logger"
+	"github.com/walkure/homeprobe/pkg/revision"
 
 	"kernel.org/pub/linux/libs/security/libcap/cap"
 )
@@ -23,8 +24,13 @@ var aboveSeaLevel = flag.Float64("above_sea_level", 0, "Height above sea level")
 var wxBeacon2ID = flag.String("wxbeacon", "", "WxBeacon2 Device ID")
 var logLevel = flag.String("loglevel", "INFO", "Log Level")
 
+// name of binary file populated at build-time
+var binName = ""
+
 func main() {
+	flag.Usage = revision.Usage(binName)
 	flag.Parse()
+
 	initLogger(*logLevel)
 	c := cap.GetProc()
 

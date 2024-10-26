@@ -24,6 +24,13 @@ build: $(BINARIES)
 
 # build binary
 $(BINARIES): $(GO_FILES)
+	go build \
+	-ldflags="\
+	-X github.com/walkure/homeprobe/pkg/revision.commit=$(shell git rev-parse --verify --short HEAD) \
+	-X 'github.com/walkure/homeprobe/pkg/revision.tag=$(shell git describe --exact-match --tags 2>/dev/null || echo NO_TAG)' \
+	-X main.binName=$(shell basename $@) \
+	" \
+	-o $@ $(@:$(BINDIR)/%$(EXPORTER)=$(ROOT_MODULE)/cmd/%) 
 
 clean:
 	rm -rf $(BINDIR)

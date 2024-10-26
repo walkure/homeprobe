@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/walkure/homeprobe/pkg/revision"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/devices/v3/bmxx80"
 	"periph.io/x/devices/v3/ccs811"
@@ -26,7 +27,12 @@ const (
 	warming_seconds = 30
 )
 
+// name of binary file populated at build-time
+var binName = ""
+
 func main() {
+
+	flag.Usage = revision.Usage(binName)
 	flag.Parse()
 
 	logger := initLogger(*logLevel)
