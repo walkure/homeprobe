@@ -76,6 +76,7 @@ func main() {
 		Addr: *promAddr,
 	}
 
+	// register handler to DefaultServeMux
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, _ *http.Request) {
 		metrics.Write(w)
 	})

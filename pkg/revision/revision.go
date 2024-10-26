@@ -7,8 +7,8 @@ import (
 )
 
 // Build information. Populated at build-time.
-var commit = "N/A"
-var tag = "N/A"
+var commit = "no commit"
+var tag = "no tag"
 
 // runtimeVersion is the version of the Go compiler used.
 var runtimeVersion = fmt.Sprintf("%s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH)
