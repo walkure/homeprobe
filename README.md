@@ -2,7 +2,7 @@
 
 Prometheusで自宅環境を観測するためのExpoter
 
-Goで書いています。(go version go1.21.0 linux/arm)
+Goで書いています。(go version go1.23.0 linux/arm,linux/amd64)
 
 # センサなど
 ハードウェアは Raspberry Pi Zero W を使っていますが、必要なI/Fが実装されていれば他のでもいけそう。
@@ -16,12 +16,13 @@ Goで書いています。(go version go1.21.0 linux/arm)
 - Bluetooth Low Energy(BLE)
   - WxBeacon2(2JCIE-BL01) [WxBeacon2](https://weathernews.jp/smart/wxbeacon2/)
     - EPモード(General/Limited Broadcaster 2)に設定されていることを期待しています。
+  - [SwitchBot 防水温湿度計](https://www.switchbot.jp/products/switchbot-indoor-outdoor-meter)
 
 # ビルド
 
- `make` で `co2`/`i2cdev`/`wxbeacon2`の3バイナリを作ります。 `./bin`にバイナリを吐くので、`sudo mv ./bin/* /usr/local/bin/`などで。
+ `make` で `co2`/`i2cdev`/`wxbeacon2`/`wosensor`の4バイナリを作ります。 `./bin`にバイナリを吐くので、`sudo mv ./bin/* /usr/local/bin/`などで。
 
- GitHub Actionsでarmとarm64のビルドを作って[Release](https://github.com/walkure/homeprobe/releases)に入るようにしてあります。
+ GitHub Actionsでarm/arm64とamd64のビルドを作って[Release](https://github.com/walkure/homeprobe/releases)に入るようにしてあります。
 
 # 起動設定
 
@@ -39,6 +40,9 @@ listenするアドレスはデフォルトで`:9821`ですが、`--listen`で適
   - Linuxの場合、BLEの操作に`CAP_NET_ADMIN`が必要です。
   - WxBeacon2のMacアドレスを引数`--wxbeacon`に渡してください。
   - 海面更正気圧を記録する場合は`--above_sea_level`に海抜(m)を設定してください。
+- wosensor
+  - Linuxの場合、BLEの操作に`CAP_NET_ADMIN`が必要です。
+  - SwitchBot 防水温湿度計のMacアドレスを引数`--wosensor`に渡してください。
 
 
 # ライセンス
