@@ -31,6 +31,17 @@ func (s MetricSet) Write(w io.Writer) error {
 	return nil
 }
 
+// satisfy slog.LogValuer interface
+func (s MetricSet) LogValue() slog.Value {
+
+	v := []slog.Attr{}
+	for _, k := range util.Keys(s) {
+		v = append(v, s[k].LogAttr())
+	}
+
+	return slog.GroupValue(v...)
+}
+
 func NewGauge(name, help string) Metric {
 	return &metricEntity{
 		metricName: name,
@@ -45,6 +56,7 @@ type Metric interface {
 	outputMetric(w io.Writer, now time.Time) error
 	Set(labels Labels, value RoundFloat64)
 	SetWithTimeout(labels Labels, value RoundFloat64, expireAt time.Time)
+	LogAttr() slog.Attr
 }
 
 type metricEntity struct {
@@ -112,9 +124,18 @@ func (m *metricEntity) outputMetric(w io.Writer, now time.Time) error {
 	return nil
 }
 
+func (m *metricEntity) LogAttr() slog.Attr {
+	v := []slog.Attr{}
+	for _, k := range util.Keys(m.values) {
+		v = append(v, m.values[k].logAttr())
+	}
+	return slog.Group(m.metricName, "", v)
+}
+
 type metricValueItem interface {
 	writeValue(name string, w io.Writer) error
 	valueToString() string
+	logAttr() slog.Attr
 }
 
 type metricExpirableItem interface {
@@ -155,6 +176,13 @@ func (m metricStringerItem) expired(now time.Time) (bool, string) {
 	return false, ""
 }
 
+func (m metricStringerItem) logAttr() slog.Attr {
+	return slog.Group("metric",
+		m.labels.LogAttr(),
+		slog.String("value", m.value.String()),
+	)
+}
+
 // Labels is a set of labels for a metric
 type Labels map[string]string
 
@@ -168,4 +196,14 @@ func (l Labels) String() string {
 		kvs = append(kvs, fmt.Sprintf("%s=%s", k, strconv.Quote(l[k])))
 	}
 	return "{" + strings.Join(kvs, ",") + "}"
+}
+
+func (l Labels) LogAttr() slog.Attr {
+
+	a := []slog.Attr{}
+	for _, k := range util.Keys(l) {
+		a = append(a, slog.String(k, l[k]))
+	}
+
+	return slog.Group("labels", "", a)
 }
