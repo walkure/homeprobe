@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/walkure/go-lpsensors"
 	"github.com/walkure/homeprobe/pkg/revision"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/devices/v3/bmxx80"
@@ -24,6 +25,7 @@ const (
 	ccs811_bus      = 0x5b
 	bme280_bus      = 0x76
 	sht3x_bus       = 0x45
+	lps_bus         = 0x5c
 	warming_seconds = 30
 )
 
@@ -96,7 +98,17 @@ func main() {
 		}
 	}
 
-	if bmx == nil && sht == nil && ccs == nil {
+	// 4th LPS331AP
+	var lps *lpsensors.Dev
+	lps, err = lpsensors.NewI2C(bus, lps_bus, nil)
+	if err != nil {
+		logger.Warn("LPS331AP open error", slog.Any("err", err))
+		lps = nil
+	} else {
+		logger.Info("LPS331AP activated")
+	}
+
+	if bmx == nil && sht == nil && ccs == nil && lps == nil {
 		panic("no sensor detected.")
 	}
 
@@ -112,7 +124,7 @@ func main() {
 			return
 		}
 
-		result, err := measure(bmx, ccs, sht)
+		result, err := measure(bmx, ccs, sht, lps)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			logger.Error("measurement error", slog.Any("err", err))

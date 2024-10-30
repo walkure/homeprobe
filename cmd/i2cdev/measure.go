@@ -1,22 +1,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
+
 	//"log"
 
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/devices/v3/bmxx80"
 	"periph.io/x/devices/v3/ccs811"
 
+	"github.com/walkure/go-lpsensors"
 	"github.com/walkure/homeprobe/pkg/metrics"
 	"github.com/walkure/homeprobe/pkg/weather"
 
 	sht3x "github.com/d2r2/go-sht3x"
 )
 
-func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, error) {
+func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x, lps *lpsensors.Dev) (metrics.MetricSet, error) {
 
-	var inTemp, inHumid float64
+	var inTemp, inHumid, hPaMSL float64
 	var err error
 
 	s := metrics.MetricSet{}
@@ -36,21 +39,13 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, e
 	s.Add(eCO2ppm)
 	s.Add(vocppb)
 
-	labels := metrics.Labels{"place":"inside"}
+	labels := metrics.Labels{"place": "inside"}
 
 	if bme != nil {
-		var hPaMSL float64
 		inTemp, inHumid, hPaMSL, err = measureBMxx80(bme)
 		if err != nil {
 			return nil, err
 		}
-		airPressure.Set(
-			labels,
-			metrics.RoundFloat64{
-				Value: hPaMSL,
-				Precision: 2,
-			},
-		)
 	}
 
 	if sht != nil {
@@ -60,37 +55,56 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, e
 		}
 	}
 
+	if lps != nil {
+		inTemp, hPaMSL, err = measureLPS(lps)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	temperature.Set(
 		labels,
 		metrics.RoundFloat64{
-			Value: inTemp,
+			Value:     inTemp,
 			Precision: 2,
 		},
 	)
 
-	relativeHumidity.Set(
-		labels,
-		metrics.RoundFloat64{
-			Value: inHumid,
-			Precision: 2,
-		},
-	)
+	if bme != nil || lps != nil {
+		airPressure.Set(
+			labels,
+			metrics.RoundFloat64{
+				Value:     hPaMSL,
+				Precision: 2,
+			},
+		)
+	}
 
-	absoluteHumidity.Set(
-		labels,
-		metrics.RoundFloat64{
-			Value: weather.AbsoluteHumidity(inTemp, inHumid),
-			Precision: 2,
-		},
-	)
+	if bme != nil || sht != nil {
+		relativeHumidity.Set(
+			labels,
+			metrics.RoundFloat64{
+				Value:     inHumid,
+				Precision: 2,
+			},
+		)
 
-	disconfortIndex.Set(
-		labels,
-		metrics.RoundFloat64{
-			Value: weather.DisconfortIndex(inTemp, inHumid),
-			Precision: 2,
-		},
-	)
+		absoluteHumidity.Set(
+			labels,
+			metrics.RoundFloat64{
+				Value:     weather.AbsoluteHumidity(inTemp, inHumid),
+				Precision: 2,
+			},
+		)
+
+		disconfortIndex.Set(
+			labels,
+			metrics.RoundFloat64{
+				Value:     weather.DisconfortIndex(inTemp, inHumid),
+				Precision: 2,
+			},
+		)
+	}
 
 	if ccs != nil {
 		var eCO2, voc float64
@@ -101,7 +115,7 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, e
 		eCO2ppm.Set(
 			labels,
 			metrics.RoundFloat64{
-				Value: eCO2,
+				Value:     eCO2,
 				Precision: 2,
 			},
 		)
@@ -109,12 +123,11 @@ func measure(bme *bmxx80.Dev, ccs *ccs811.Dev, sht *SHT3x) (metrics.MetricSet, e
 		vocppb.Set(
 			labels,
 			metrics.RoundFloat64{
-				Value: voc,
+				Value:     voc,
 				Precision: 2,
 			},
 		)
 	}
-
 
 	return s, nil
 }
@@ -160,4 +173,17 @@ func measureSHT3x(sht *SHT3x) (float64, float64, error) {
 	//log.Printf("SHT3x %v*C, %v%%\n", inTemp, inHumid)
 
 	return inTemp, inHumid, nil
+}
+
+func measureLPS(lps *lpsensors.Dev) (float64, float64, error) {
+	var env lpsensors.SensorValues
+	if err := lps.Sense(context.Background(), &env); err != nil {
+		return 0, 0, fmt.Errorf("LPS: %w", err)
+	}
+	//log.Printf("LPS331AP %s\n", env.String())
+
+	inTemp := float64(env.Temperature.Celsius())
+	hPaMSL := weather.MeanHeightAirPressure(float64(env.Pressure)/float64(physic.Pascal*100), inTemp, *aboveSeaLevel)
+
+	return inTemp, hPaMSL, nil
 }
