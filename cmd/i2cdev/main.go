@@ -74,8 +74,9 @@ func main() {
 		if err = ccs.StartSensorApp(); err != nil {
 			logger.Error("CCS811 start error", slog.Any("err", err))
 			ccs = nil
+		} else {
+			logger.Info("CCS811 activated")
 		}
-		logger.Info("CCS811 activated")
 	}
 
 	// 3rd SHT3x
@@ -90,10 +91,12 @@ func main() {
 		if err = sht.Reset(); err != nil {
 			logger.Error("SHT3x start error", slog.Any("err", err))
 			sht = nil
+		} else {
+			logger.Info("SHT3x activated")
 		}
-		logger.Info("SHT3x activated")
 	}
-	if bmx == nil && sht == nil {
+
+	if bmx == nil && sht == nil && ccs == nil {
 		panic("no sensor detected.")
 	}
 
