@@ -23,7 +23,7 @@ import (
 )
 
 var promAddr = flag.String("listen", ":9821", "OpenMetrics Exporter Listeing Address")
-var woSensorTHOId = flag.String("wosensor", "", "WoSensorTHO Device ID")
+var woSensorTHOId = flag.String("tho", "", "WoSensorTHO Device ID")
 var logLevel = flag.String("loglevel", "INFO", "Log Level")
 
 // name of binary file populated at build-time
@@ -42,13 +42,13 @@ func main() {
 	logger.Info("procinfo", slog.String("cap", c.String()))
 
 	if *woSensorTHOId == "" {
-		logger.Error("argument `wosensor` is mandatory")
+		logger.Error("argument `tho` is mandatory")
 		return
 	}
 
 	logger.Info("arguments",
 		slog.String("listen", *promAddr),
-		slog.String("woSensorTHO", *woSensorTHOId),
+		slog.String("tho", *woSensorTHOId),
 	)
 
 	data := metrics.MetricSet{}
