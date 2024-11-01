@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/walkure/go-lpsensors"
@@ -136,6 +141,31 @@ func main() {
 
 	})
 
-	logger.Error("Server stop", slog.Any("err", http.ListenAndServe(*promAddr, nil)))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	serv := &http.Server{
+		Addr: *promAddr,
+	}
+
+	go func() {
+		logger.Info("server listening", slog.String("address", serv.Addr))
+
+		if err := serv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("stop serving", slog.String("error", err.Error()))
+		}
+	}()
+	<-ctx.Done()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	logger.Warn("shutting down server")
+
+	if err := serv.Shutdown(ctx); err != nil {
+		logger.Error("server shutdown", slog.String("error", err.Error()))
+		if err := serv.Close(); err != nil {
+			logger.Error("server close", slog.String("error", err.Error()))
+		}
+	}
 
 }
