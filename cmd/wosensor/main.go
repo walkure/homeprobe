@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -17,14 +16,13 @@ import (
 	loggerFactory "github.com/walkure/homeprobe/pkg/logger"
 	"github.com/walkure/homeprobe/pkg/metrics"
 	"github.com/walkure/homeprobe/pkg/revision"
-	"github.com/walkure/homeprobe/pkg/weather"
 
 	"kernel.org/pub/linux/libs/security/libcap/cap"
 )
 
 var promAddr = flag.String("listen", ":9821", "OpenMetrics Exporter Listeing Address")
-var woSensorTHOId = flag.String("tho", "", "WoSensorTHO Device ID")
 var logLevel = flag.String("loglevel", "INFO", "Log Level")
+var woSensorTHOId = flag.String("tho", "", "WoSensorTHO Device ID")
 
 // name of binary file populated at build-time
 var binName = ""
@@ -34,31 +32,25 @@ func main() {
 	flag.Parse()
 
 	loggerFactory.InitalizeLogger(*logLevel)
-	wosensors.SetLogger(loggerFactory.GetLogger("wosensor_tho"))
+	wosensors.SetLogger(loggerFactory.GetLogger("wosensors"))
 	c := cap.GetProc()
 
 	logger := loggerFactory.GetLogger("main")
 
 	logger.Info("procinfo", slog.String("cap", c.String()))
 
-	if *woSensorTHOId == "" {
-		logger.Error("argument `tho` is mandatory")
-		return
-	}
-
 	logger.Info("arguments",
 		slog.String("listen", *promAddr),
 		slog.String("tho", *woSensorTHOId),
 	)
 
-	data := metrics.MetricSet{}
+	data := NewMetrics(15*time.Minute, metrics.Labels{"place": "outside"})
+	tho := NewTHO(*woSensorTHOId, data)
 
-	temp := metrics.NewGauge("temperature", "Temperature")
-	relHumid := metrics.NewGauge("relative_humidity", "Relative Humidity percent")
-	absHumid := metrics.NewGauge("absolute_humidity", "Absolute Humidity g/m^3")
-	disconfortIndex := metrics.NewGauge("disconfort_index", "Disconfort Index")
-	vBattery := metrics.NewGauge("sensor_vbat", "Voltage of Sensor battery")
-	data.Add(temp, relHumid, absHumid, disconfortIndex, vBattery)
+	if tho == nil {
+		logger.Error("No WoSensor activated. exit.")
+		os.Exit(1)
+	}
 
 	// Active scanning
 	d, err := gatt.NewDevice()
@@ -67,70 +59,7 @@ func main() {
 		panic(err)
 	}
 
-	var mu sync.Mutex
-	seqno := uint8(0)
-
-	labels := metrics.Labels{"place": "outside"}
-
-	d.Handle(gatt.PeripheralDiscovered(wosensors.HandleWoSensorTHO(*woSensorTHOId, false, func(d wosensors.THOData) {
-		mu.Lock()
-		defer mu.Unlock()
-		if seqno == d.SequenceNumber {
-			logger.Debug("sequence not changed", slog.Uint64("seq", uint64(d.SequenceNumber)))
-			return
-		}
-
-		logger.Debug("new data", "d", d, "seq", d.SequenceNumber)
-
-		seqno = d.SequenceNumber
-
-		expireAt := time.Now().Add(15 * time.Minute)
-		temp.SetWithTimeout(
-			labels,
-			metrics.RoundFloat64{
-				Value:     float64(d.Temperature),
-				Precision: 2,
-			},
-			expireAt,
-		)
-		relHumid.SetWithTimeout(
-			labels,
-			metrics.RoundFloat64{
-				Value:     float64(d.Humidity),
-				Precision: 0,
-			},
-			expireAt,
-		)
-		absHumid.SetWithTimeout(
-			labels,
-			metrics.RoundFloat64{
-				Value:     weather.AbsoluteHumidity(float64(d.Temperature), float64(d.Humidity)),
-				Precision: 2,
-			},
-			expireAt,
-		)
-		disconfortIndex.SetWithTimeout(
-			labels,
-			metrics.RoundFloat64{
-				Value:     weather.DisconfortIndex(float64(d.Temperature), float64(d.Humidity)),
-				Precision: 2,
-			},
-			expireAt,
-		)
-		if d.BatteryPercent <= 100 {
-			vBattery.SetWithTimeout(
-				labels,
-				metrics.RoundFloat64{
-					Value:     float64(d.BatteryPercent) / 100.0 * 3,
-					Precision: 3,
-				},
-				expireAt,
-			)
-		}
-
-		logger.Info("updated", "d", data, "seq", d.SequenceNumber)
-
-	}, nil)))
+	d.Handle(gatt.PeripheralDiscovered(tho.Handler(nil)))
 
 	d.Init(func(d gatt.Device, s gatt.State) {
 		switch s {
