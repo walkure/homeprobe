@@ -58,7 +58,7 @@ func (t *THO) Handler(next func(gatt.Peripheral, *gatt.Advertisement, int)) func
 
 		t.seqno = d.SequenceNumber
 
-		t.logger.Debug("new data", "d", d, "seq", d.SequenceNumber)
+		t.logger.Info("data updated", "", d, "seq", d.SequenceNumber)
 
 		t.m.UpdateTemperature(float64(d.Temperature), labels)
 		t.m.UpdateRelativeHumidity(float64(d.Humidity), labels)
