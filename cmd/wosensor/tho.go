@@ -45,15 +45,13 @@ func (t *THO) Handler(next func(gatt.Peripheral, *gatt.Advertisement, int)) func
 		t.mu.Lock()
 		defer t.mu.Unlock()
 
-		if t.seqno == d.SequenceNumber {
-			scanType := "active"
-			if d.BatteryPercent > 100 {
-				scanType = "passive"
-			}
+		if t.m.UpdateBattery(d.BatteryPercent, labels) {
+			t.logger.Debug("battery changed", slog.Uint64("battery", uint64(d.BatteryPercent)))
+		}
 
+		if t.seqno == d.SequenceNumber {
 			t.logger.Debug("sequence not changed",
 				slog.Uint64("seq", uint64(d.SequenceNumber)),
-				slog.String("scan_type", scanType),
 			)
 			return
 		}
@@ -66,12 +64,9 @@ func (t *THO) Handler(next func(gatt.Peripheral, *gatt.Advertisement, int)) func
 		t.m.UpdateRelativeHumidity(float64(d.Humidity), labels)
 		t.m.UpdateAbsoluteHumidity(weather.AbsoluteHumidity(float64(d.Temperature), float64(d.Humidity)), labels)
 		t.m.UpdateDisconfortIndex(weather.DisconfortIndex(float64(d.Temperature), float64(d.Humidity)), labels)
-		if d.BatteryPercent <= 100 {
-			t.m.UpdateBattery(float64(d.BatteryPercent)/100.0*3, labels)
-		}
 
 	}
 
-	// active scanning only
-	return wosensors.HandleWoSensorTHO(*woSensorTHOId, false, handler, next)
+	// active/passive scanning
+	return wosensors.HandleWoSensorTHO(*woSensorTHOId, true, handler, next)
 }
