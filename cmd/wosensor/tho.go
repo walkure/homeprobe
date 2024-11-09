@@ -25,7 +25,7 @@ func NewTHO(deviceId string, d *MetricData) *THO {
 	logger := loggerFactory.GetLogger("tho")
 
 	if deviceId == "" {
-		logger.Warn("deviceId is mandatory. Disabled")
+		logger.Warn("tho is mandatory. Disabled")
 		return nil
 	}
 
