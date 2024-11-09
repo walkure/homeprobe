@@ -16,6 +16,7 @@ type THO struct {
 	logger   *slog.Logger
 	mu       sync.Mutex
 	seqno    uint8
+	bt_seqno uint8
 	m        *MetricData
 }
 
@@ -45,8 +46,12 @@ func (t *THO) Handler(next func(gatt.Peripheral, *gatt.Advertisement, int)) func
 		t.mu.Lock()
 		defer t.mu.Unlock()
 
-		if t.m.UpdateBattery(d.BatteryPercent, labels) {
-			t.logger.Debug("battery changed", slog.Uint64("battery", uint64(d.BatteryPercent)))
+		if d.BatteryPercent <= 100 && t.bt_seqno != d.SequenceNumber {
+			t.bt_seqno = d.SequenceNumber
+			t.m.UpdateBattery(d.BatteryPercent, labels)
+			t.logger.Info("battery changed",
+				slog.Uint64("battery", uint64(d.BatteryPercent)),
+				slog.Uint64("seq", uint64(d.SequenceNumber)))
 		}
 
 		if t.seqno == d.SequenceNumber {

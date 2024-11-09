@@ -97,11 +97,7 @@ func (m *MetricData) UpdateDisconfortIndex(value float64, extra metrics.Labels) 
 	)
 }
 
-func (m *MetricData) UpdateBattery(value uint8, extra metrics.Labels) bool {
-	if value > 100 {
-		return false
-	}
-
+func (m *MetricData) UpdateBattery(value uint8, extra metrics.Labels) {
 	m.vBattery.SetWithTimeout(
 		mergeLabels(m.baseLabels, extra),
 		metrics.RoundFloat64{
@@ -110,6 +106,4 @@ func (m *MetricData) UpdateBattery(value uint8, extra metrics.Labels) bool {
 		},
 		time.Now().Add(m.ttl),
 	)
-
-	return true
 }
