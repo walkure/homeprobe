@@ -101,7 +101,7 @@ func (m *MetricData) UpdateBattery(value uint8, extra metrics.Labels) {
 	m.vBattery.SetWithTimeout(
 		mergeLabels(m.baseLabels, extra),
 		metrics.RoundFloat64{
-			Value:     float64(value) / 100.0 * 3,
+			Value:     float64(uint16(value)+200) / 100.0,
 			Precision: 3,
 		},
 		time.Now().Add(m.ttl),
