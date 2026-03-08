@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -58,6 +59,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	mon := d.(interface {
+		Done() <-chan struct{}
+		Err() error
+	})
+
+	go func() {
+		<-mon.Done()
+		logger.Error("gatt hci mainLoop exited", slog.String("error", fmt.Sprintf("%v", mon.Err())))
+		os.Exit(1)
+	}()
+	logger.Debug("starting gatt hci mainLoop watcher")
 
 	d.Handle(gatt.PeripheralDiscovered(tho.Handler(nil)))
 
